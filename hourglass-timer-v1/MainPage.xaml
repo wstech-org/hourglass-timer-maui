@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="hourglass_timer_v1.MainPage"
+             xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls">
+
+    <Grid RowDefinitions="10, auto, 2*, 2*, 10" ColumnDefinitions="10, *, 10">
+
+        <Label x:Name="headerLabel"
+                Grid.Row="1" 
+               Grid.Column="1" 
+               Text="Hourglass Timer" 
+               FontSize="48"
+               FontAttributes="Bold"
+               Margin="0,0,0,10"/>
+
+        <skia:SKCanvasView x:Name="canvasView" 
+                           Grid.Column="1" 
+                           Grid.Row="2"
+                           PaintSurface="OnCanvasViewPaintSurface" />
+
+
+        <VerticalStackLayout Grid.Row="3" 
+                     Grid.Column="1"
+                     HorizontalOptions="Center"
+                     Margin="20">
+            <HorizontalStackLayout>
+                <Button x:Name="reduceTimerButton"
+                        Text="-"
+                        WidthRequest="50"
+                        HeightRequest="50"/>     
+
+                <Label Text="00:00"
+                       VerticalTextAlignment="Center"
+                       Margin="10"
+                       FontSize="32"/>
+
+                <Button x:Name="increaseTimerButton"
+                        Text="+"
+                        WidthRequest="50"
+                        HeightRequest="50"/>
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout>
+                <Button x:Name="startTimerButton"
+                        Text="Start"
+                        Margin="0,5"/>
+
+                <Button x:Name="resetTimerButton"
+                        Text="Reset"
+                        Margin="0,5"/>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+
+    </Grid>
+
+</ContentPage>
