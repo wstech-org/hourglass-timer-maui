@@ -6,6 +6,24 @@ namespace hourglass_timer_v1
     public partial class MainPage : ContentPage
     {
         const int SIZE = 5;
+        //TimePicker timerText = new();
+        //DateTime time = DateTime.Parse("00:00");
+        TimeSpan time = new();
+
+        int mdInt = 0;
+
+        Dictionary<string, int> timerModifiers = new()
+        {
+            {"1x", 1},
+            {"2x", 2},
+            {"4x", 4},
+            {"20x", 20},
+        };
+
+        List<string> timerModifiersText = new()
+        {
+            "1x", "2x", "4x", "20x"
+        };
         public MainPage()
         {
             InitializeComponent();
@@ -68,14 +86,46 @@ namespace hourglass_timer_v1
 
                     canvas.DrawRect(rect, paint);
                 }
-                if (verticalIndex > 4 && changeSides == false) { 
+                if (verticalIndex > 3 && changeSides == false) { 
                     changeSides = true; 
                     idx--;
-                    verticalIndex--;
+                    continue;
                 }
                 if (changeSides) idx--;
                 else idx++;
             }
+        }
+
+        private void TimerButton_Clicked(object sender, EventArgs e)
+        {
+            Button button = (Button)sender;
+
+            if(button.Text.Equals("-") && time.TotalSeconds > 0)
+            {
+                if (TimeSpan.FromSeconds(time.TotalSeconds) < TimeSpan.FromSeconds(15 * timerModifiers[decreaseTimerModifierButton.Text]))
+                    time = TimeSpan.FromSeconds(0);
+                else 
+                    time -= TimeSpan.FromSeconds(15 * timerModifiers[decreaseTimerModifierButton.Text]);
+
+                TimerLabel.Text = time.ToString(@"mm\:ss");
+
+            }
+            else if (button.Text.Equals("+") && time.TotalSeconds < 3600)
+            {
+                time += TimeSpan.FromSeconds(15 * timerModifiers[increaseTimerModifierButton.Text]);
+                TimerLabel.Text = time.ToString(@"mm\:ss");
+            }
+            
+        }
+
+        private void ModifierButton_Clicked(object sender, EventArgs e)
+        {
+            if (mdInt < 3) mdInt++;
+            else mdInt = 0;
+
+            Button button = (Button)sender;
+
+            button.Text = timerModifiersText[mdInt];
         }
     }
 }
