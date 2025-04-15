@@ -19,26 +19,40 @@
                            Grid.Row="2"
                            PaintSurface="OnCanvasViewPaintSurface" />
 
-
         <VerticalStackLayout Grid.Row="3" 
                      Grid.Column="1"
                      HorizontalOptions="Center"
                      Margin="20">
             <HorizontalStackLayout>
-                <Button x:Name="reduceTimerButton"
-                        Text="-"
+                <Button x:Name="decreaseTimerModifierButton"
+                        Text="1x"
+                        Clicked="ModifierButton_Clicked"
                         WidthRequest="50"
-                        HeightRequest="50"/>     
+                        HeightRequest="50"/>
 
-                <Label Text="00:00"
-                       VerticalTextAlignment="Center"
-                       Margin="10"
-                       FontSize="32"/>
+                <Button x:Name="decreaseTimerButton"
+                        Text="-"
+                        Clicked="TimerButton_Clicked"
+                        WidthRequest="50"
+                        HeightRequest="50"/>
+
+                <Label
+                     x:Name="TimerLabel"
+                     FontSize="35"
+                     HorizontalOptions="Center"
+                     Text="00:00" />
 
                 <Button x:Name="increaseTimerButton"
                         Text="+"
+                        Clicked="TimerButton_Clicked"
                         WidthRequest="50"
                         HeightRequest="50"/>
+
+                <Button x:Name="increaseTimerModifierButton"
+                        Text="1x"
+                        Clicked="ModifierButton_Clicked"
+                        WidthRequest="50"
+                        HeightRequest="50"/>        
             </HorizontalStackLayout>
 
             <VerticalStackLayout>
