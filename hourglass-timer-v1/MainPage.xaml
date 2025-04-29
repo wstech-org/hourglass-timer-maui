@@ -4,7 +4,7 @@
              x:Class="hourglass_timer_v1.MainPage"
              xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls">
 
-    <Grid RowDefinitions="10, auto, 2*, 2*, 10" ColumnDefinitions="10, *, 10">
+    <Grid RowDefinitions="10, auto, 3*, 2*, 10" ColumnDefinitions="10, *, 10">
 
         <Label x:Name="headerLabel"
                 Grid.Row="1" 

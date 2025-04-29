@@ -1,15 +1,14 @@
 ﻿using SkiaSharp.Views.Maui.Controls;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
+using System.Timers;
 namespace hourglass_timer_v1
 {
     public partial class MainPage : ContentPage
     {
-        const int SIZE = 5;
-        //TimePicker timerText = new();
-        //DateTime time = DateTime.Parse("00:00");
+        private System.Timers.Timer mainTimer;
+        const int SIZE = 20;
         TimeSpan time = new();
-
         int mdInt = 0;
 
         Dictionary<string, int> timerModifiers = new()
@@ -60,16 +59,16 @@ namespace hourglass_timer_v1
 
             float canvasWidth = info.Width;
             float canvasHeight = info.Height;
-            float rectWidth = 100;
-            float rectHeight = 100;
+            float rectWidth = 25;
+            float rectHeight = 25;
             int idx = 0;
             bool changeSides = false;
-            for (int verticalIndex = 0; verticalIndex < 2*SIZE-1; verticalIndex++) 
+            for (int verticalIndex = 0; verticalIndex < 2*SIZE-(SIZE/4); verticalIndex++) 
             {
                 for (int horizontalIndex = 0 + idx; horizontalIndex < SIZE; horizontalIndex ++) 
                 {
                     float x = (canvasWidth/2 - (SIZE*rectWidth)/2) + horizontalIndex * rectWidth;
-                    float y = verticalIndex * rectHeight;
+                    float y = verticalIndex * rectHeight + 100;
 
                     SKRect rect = new(x - idx*(rectWidth/2)+5, y+5, x + rectWidth - idx * (rectHeight / 2), y + rectHeight);
                     SKPaint paint = paintRed;
@@ -82,11 +81,11 @@ namespace hourglass_timer_v1
                                    ? paintGray
                                    : paintRed;
 
-                    if (verticalIndex == 4) paint = paintCyan;
+                    if (verticalIndex == 16) paint = paintCyan;
 
                     canvas.DrawRect(rect, paint);
                 }
-                if (verticalIndex > 3 && changeSides == false) { 
+                if (verticalIndex > 16 && changeSides == false) { 
                     changeSides = true; 
                     idx--;
                     continue;
@@ -115,7 +114,6 @@ namespace hourglass_timer_v1
                 time += TimeSpan.FromSeconds(15 * timerModifiers[increaseTimerModifierButton.Text]);
                 TimerLabel.Text = time.ToString(@"mm\:ss");
             }
-            
         }
 
         private void ModifierButton_Clicked(object sender, EventArgs e)
@@ -126,6 +124,37 @@ namespace hourglass_timer_v1
             Button button = (Button)sender;
 
             button.Text = timerModifiersText[mdInt];
+        }
+
+        private void startTimerButton_Clicked(object sender, EventArgs e)
+        {
+            mainTimer = new System.Timers.Timer(time);
+            mainTimer.Interval = 1000;
+            mainTimer.Enabled = true;
+            mainTimer.Elapsed += OnTimerElapsed;
+
+        }
+
+        private void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                time -= TimeSpan.FromSeconds(1);
+                TimerLabel.Text = time.ToString(@"mm\:ss");
+                if (time.TotalSeconds <= 0)
+                {
+                    mainTimer.Stop();
+                    TimerLabel.Text = "00:00";
+                    mainTimer.Dispose();
+                    time = TimeSpan.Zero;
+                }
+            });
+        }
+
+        private void resetTimerButton_Clicked(object sender, EventArgs e)
+        {
+            time = TimeSpan.Zero;
+            TimerLabel.Text = time.ToString(@"mm\:ss");
         }
     }
 }
