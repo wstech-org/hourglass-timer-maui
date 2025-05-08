@@ -7,25 +7,44 @@ namespace hourglass_timer_v1
     public partial class MainPage : ContentPage
     {
         private System.Timers.Timer mainTimer;
+        private System.Timers.Timer animationTimer;
         const int SIZE = 20;
         TimeSpan time = new();
         int mdInt = 0;
 
         Dictionary<string, int> timerModifiers = new()
-        {
-            {"1x", 1},
-            {"2x", 2},
-            {"4x", 4},
-            {"20x", 20},
-        };
+           {
+               {"1x", 1},
+               {"2x", 2},
+               {"4x", 4},
+               {"20x", 20},
+           };
 
         List<string> timerModifiersText = new()
+           {
+               "1x", "2x", "4x", "20x"
+           };
+
+        public class HourglassCell
         {
-            "1x", "2x", "4x", "20x"
-        };
+            public SKRect Rectangle { get; set; }
+            public bool IsFilled { get; set; }
+            public int Row { get; set; }
+            public int Column { get; set; }
+            public bool IsWall { get; set; }
+        }
+
+        private List<List<HourglassCell>> hourglassCells;
+
         public MainPage()
         {
             InitializeComponent();
+            InitializeHourglassCells();
+        }
+
+        private void InitializeHourglassCells()
+        {
+            hourglassCells = new List<List<HourglassCell>>();
         }
 
         void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs args)
@@ -36,24 +55,24 @@ namespace hourglass_timer_v1
 
             canvas.Clear();
 
-            SKPaint paintGray = new SKPaint
+            SKPaint paintBrown = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColors.Gray,
+                Color = new SKColor(67, 37, 14), // Fixed conversion issue
                 StrokeWidth = 5,
             };
 
-            SKPaint paintRed = new SKPaint
+            SKPaint paintSand = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColors.LightGray,
+                Color = SKColors.SandyBrown,
                 StrokeWidth = 5,
             };
 
-            SKPaint paintCyan = new SKPaint
+            SKPaint paintPale = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColors.Cyan,
+                Color = SKColors.PaleGoldenrod,
                 StrokeWidth = 5,
             };
 
@@ -63,30 +82,44 @@ namespace hourglass_timer_v1
             float rectHeight = 25;
             int idx = 0;
             bool changeSides = false;
-            for (int verticalIndex = 0; verticalIndex < 2*SIZE-(SIZE/4); verticalIndex++) 
+
+            // Clear previous cells
+            hourglassCells.Clear();
+
+            for (int verticalIndex = 0; verticalIndex < 2 * SIZE - (SIZE / 4); verticalIndex++)
             {
-                for (int horizontalIndex = 0 + idx; horizontalIndex < SIZE; horizontalIndex ++) 
+                var rowCells = new List<HourglassCell>();
+                hourglassCells.Add(rowCells);
+
+                for (int horizontalIndex = 0 + idx; horizontalIndex < SIZE; horizontalIndex++)
                 {
-                    float x = (canvasWidth/2 - (SIZE*rectWidth)/2) + horizontalIndex * rectWidth;
+                    float x = (canvasWidth / 2 - (SIZE * rectWidth) / 2) + horizontalIndex * rectWidth;
                     float y = verticalIndex * rectHeight + 100;
 
-                    SKRect rect = new(x - idx*(rectWidth/2)+5, y+5, x + rectWidth - idx * (rectHeight / 2), y + rectHeight);
-                    SKPaint paint = paintRed;
+                    SKRect rect = new(x - idx * (rectWidth / 2) + 5, y + 5, x + rectWidth - idx * (rectHeight / 2), y + rectHeight);
+                    SKPaint paint = paintBrown;
 
-                    paint = (verticalIndex % 2 == 0) 
-                               ? (horizontalIndex % 2 == 0) 
-                                   ? paintGray 
-                                   : paintRed 
-                               : (horizontalIndex % 2 == 1) 
-                                   ? paintGray
-                                   : paintRed;
+                    paint = paintBrown;
 
-                    if (verticalIndex == 16) paint = paintCyan;
+                    if (verticalIndex < 17 && verticalIndex > 1 && horizontalIndex != 0 + idx && horizontalIndex != SIZE - 1) paint = paintSand;
+                    if (verticalIndex > 16 && verticalIndex < 33 && horizontalIndex != 0 + idx && horizontalIndex != SIZE - 1) paint = paintPale;
 
-                    canvas.DrawRect(rect, paint);
+                    var cell = new HourglassCell
+                    {
+                        Rectangle = rect,
+                        Row = verticalIndex,
+                        Column = horizontalIndex,
+                        IsFilled = paint == paintSand,
+                        IsWall = paint == paintBrown
+                    };
+
+                    rowCells.Add(cell);
+                    canvas.DrawRect(cell.Rectangle, paint);
                 }
-                if (verticalIndex > 16 && changeSides == false) { 
-                    changeSides = true; 
+
+                if (verticalIndex > 16 && changeSides == false)
+                {
+                    changeSides = true;
                     idx--;
                     continue;
                 }
@@ -99,11 +132,11 @@ namespace hourglass_timer_v1
         {
             Button button = (Button)sender;
 
-            if(button.Text.Equals("-") && time.TotalSeconds > 0)
+            if (button.Text.Equals("-") && time.TotalSeconds > 0)
             {
                 if (TimeSpan.FromSeconds(time.TotalSeconds) < TimeSpan.FromSeconds(15 * timerModifiers[decreaseTimerModifierButton.Text]))
                     time = TimeSpan.FromSeconds(0);
-                else 
+                else
                     time -= TimeSpan.FromSeconds(15 * timerModifiers[decreaseTimerModifierButton.Text]);
 
                 TimerLabel.Text = time.ToString(@"mm\:ss");
@@ -133,9 +166,24 @@ namespace hourglass_timer_v1
             mainTimer.Enabled = true;
             mainTimer.Elapsed += OnTimerElapsed;
 
+            animationTimer = new System.Timers.Timer(time);
+            animationTimer.Interval = 16; // 60fps
+            animationTimer.Enabled = true;
+            animationTimer.Elapsed += AnimationTimer_Elapsed;
+
+
         }
 
-        private void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        private void AnimationTimer_Elapsed(object? sender, ElapsedEventArgs e)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                //if(!animationTimer.Enabled || )
+
+            });
+        }
+
+        private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
