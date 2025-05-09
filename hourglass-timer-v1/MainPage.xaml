@@ -7,7 +7,7 @@
     <Grid RowDefinitions="10, auto, 3*, 2*, 10" ColumnDefinitions="10, *, 10">
 
         <Label x:Name="headerLabel"
-                Grid.Row="1" 
+               Grid.Row="1" 
                Grid.Column="1" 
                Text="Hourglass Timer" 
                FontSize="48"
@@ -15,9 +15,9 @@
                Margin="0,0,0,10"/>
 
         <skia:SKCanvasView x:Name="canvasView" 
-                           Grid.Column="1" 
-                           Grid.Row="2"
-                           PaintSurface="OnCanvasViewPaintSurface" />
+                          Grid.Column="1" 
+                          Grid.Row="2"
+                          PaintSurface="OnCanvasViewPaintSurface" />
 
         <VerticalStackLayout Grid.Row="3" 
                      Grid.Column="1"
@@ -39,12 +39,11 @@
                         WidthRequest="50"
                         HeightRequest="50"/>
 
-                <Label
-                     x:Name="TimerLabel"
-                     FontSize="35"
-                     HorizontalOptions="Center"
-                     Text="00:00"
-                     Margin="5"/>
+                <Label x:Name="TimerLabel"
+                       FontSize="35"
+                       HorizontalOptions="Center"
+                       Text="00:00"
+                       Margin="5"/>
 
                 <Button x:Name="increaseTimerButton"
                         Text="+"
@@ -71,6 +70,11 @@
                         Text="Reset"
                         Margin="0,5"
                         Clicked="resetTimerButton_Clicked"/>
+
+                <Button x:Name="rotateButton"
+                        Text="Rotate"
+                        Margin="0,5"
+                        Clicked="rotateButton_Clicked"/>
             </VerticalStackLayout>
         </VerticalStackLayout>
     </Grid>

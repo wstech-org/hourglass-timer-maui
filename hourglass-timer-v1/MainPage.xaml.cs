@@ -2,6 +2,7 @@
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
 using System.Timers;
+
 namespace hourglass_timer_v1
 {
     public partial class MainPage : ContentPage
@@ -26,10 +27,8 @@ namespace hourglass_timer_v1
         private const float GravityFactor = 0.3f;
         private float elapsedPercentage = 0;
 
+        private bool isHourglassRotated = false;
         private bool deviceIsFlipped = false;
-        private bool isAccelerometerActive = false;
-        private double lastFlipTimestamp = 0;
-        private const double FlipCooldownSeconds = 1.0;
 
         Dictionary<string, int> timerModifiers = new()
         {
@@ -95,85 +94,86 @@ namespace hourglass_timer_v1
         {
             if (Accelerometer.Default.IsSupported)
             {
-                isAccelerometerActive = true;
-
                 Accelerometer.Default.ReadingChanged += Accelerometer_ReadingChanged;
                 Accelerometer.Default.Start(SensorSpeed.UI);
-            }
-            else
-            {
-                DisplayAlert("Notice", "Accelerometer not available on this device. Flip functionality will not work.", "OK");
             }
         }
 
         private void Accelerometer_ReadingChanged(object sender, AccelerometerChangedEventArgs e)
         {
-            double currentTime = DateTime.Now.Ticks / TimeSpan.TicksPerSecond;
-            if (currentTime - lastFlipTimestamp < FlipCooldownSeconds)
+            var acceleration = e.Reading.Acceleration;
+            bool shouldBeFlipped = acceleration.Z < -0.7;
+
+            if (shouldBeFlipped != isHourglassRotated)
             {
-                return;
-            }
-
-            bool isCurrentlyFlipped = e.Reading.Acceleration.Z < -0.7;
-
-            if (isCurrentlyFlipped != deviceIsFlipped)
-            {
-                deviceIsFlipped = isCurrentlyFlipped;
-                lastFlipTimestamp = currentTime;
-
-                if (isTimerRunning || isTimerCompleted)
-                {
-                    FlipHourglass();
-
-                    if (isTimerCompleted)
-                    {
-                        RestartTimerAfterFlip();
-                    }
-
-                    try
-                    {
-                        Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(50));
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    canvasView.InvalidateSurface();
-                });
+                RotateHourglass();
             }
         }
 
-        private void FlipHourglass()
+        private void rotateButton_Clicked(object sender, EventArgs e)
         {
-            lock (sandParticleLock)
-            {
-                sandParticles.Clear();
-            }
+            RotateHourglass();
+        }
 
-            if (isTimerRunning && totalTime.TotalSeconds > 0)
+        private void RotateHourglass()
+        {
+            isHourglassRotated = !isHourglassRotated;
+            deviceIsFlipped = !deviceIsFlipped;
+
+            // Handle timer and sand adjustment when rotating
+            if (isTimerRunning || isTimerCompleted)
             {
+                // Calculate the new time after rotation
                 float remainingPercentage = (float)(time.TotalSeconds / totalTime.TotalSeconds);
-
                 float flippedPercentage = 1.0f - remainingPercentage;
-
                 time = TimeSpan.FromSeconds(totalTime.TotalSeconds * flippedPercentage);
 
+                // Update UI
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     TimerLabel.Text = time.ToString(@"mm\:ss");
                 });
-            }
-            else if (isTimerCompleted)
-            {
-                time = totalTime;
+
+                // Clear sand particles for the flip
+                lock (sandParticleLock)
+                {
+                    sandParticles.Clear();
+                }
+
+                // If timer was completed, restart it in the new orientation
+                if (isTimerCompleted)
+                {
+                    isTimerCompleted = false;
+                    isTimerRunning = true;
+                    StartTimers();
+                }
             }
 
+            // Trigger redraw
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 canvasView.InvalidateSurface();
+            });
+        }
+
+        private void StartTimers()
+        {
+            mainTimer = new System.Timers.Timer();
+            mainTimer.Interval = 1000;
+            mainTimer.Enabled = true;
+            mainTimer.Elapsed += OnTimerElapsed;
+
+            isAnimating = true;
+
+            animationTimer = new System.Timers.Timer();
+            animationTimer.Interval = 16;
+            animationTimer.Enabled = true;
+            animationTimer.Elapsed += AnimationTimer_Elapsed;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                startTimerButton.IsEnabled = false;
+                resetTimerButton.IsEnabled = true;
             });
         }
 
@@ -181,7 +181,6 @@ namespace hourglass_timer_v1
         {
             hourglassCells = new List<List<HourglassCell>>();
         }
-
         void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs args)
         {
             SKImageInfo info = args.Info;
@@ -220,6 +219,7 @@ namespace hourglass_timer_v1
 
             centerX = canvasWidth / 2;
 
+            // Calculate neck positions based on rotation state
             if (deviceIsFlipped)
             {
                 neckStartY = (SIZE + (SIZE / 4)) * rectHeight / 2 + 100;
@@ -232,16 +232,16 @@ namespace hourglass_timer_v1
             }
 
             neckWidth = rectWidth * 2;
-
             hourglassCells.Clear();
 
+            // Apply rotation transformation
             canvas.Save();
-
-            if (deviceIsFlipped)
+            if (isHourglassRotated)
             {
                 canvas.RotateRadians((float)Math.PI, canvasWidth / 2, canvasHeight / 2);
             }
 
+            // Draw hourglass frame and sand
             for (int verticalIndex = 0; verticalIndex < 2 * SIZE - (SIZE / 4); verticalIndex++)
             {
                 var rowCells = new List<HourglassCell>();
@@ -331,6 +331,7 @@ namespace hourglass_timer_v1
                 else idx++;
             }
 
+            // Draw sand particles
             if ((isAnimating || isTimerCompleted) && sandParticles.Count > 0)
             {
                 SKPaint particlePaint = new SKPaint
@@ -349,7 +350,6 @@ namespace hourglass_timer_v1
 
             canvas.Restore();
         }
-
         private void UpdateSandParticles()
         {
             if (!isAnimating) return;
@@ -363,7 +363,10 @@ namespace hourglass_timer_v1
                 currentParticles = new List<SandParticle>(sandParticles);
             }
 
-            if (currentParticles.Count < MaxParticles && random.NextDouble() < 0.3 && time.TotalSeconds > 1)
+            // Only add new particles if there's time remaining
+            if (currentParticles.Count < MaxParticles &&
+                random.NextDouble() < 0.3 &&
+                time.TotalSeconds > 1)
             {
                 float offsetX = (float)(random.NextDouble() * neckWidth - neckWidth / 2);
                 float size = (float)(random.NextDouble() * 2 + 2);
@@ -372,6 +375,7 @@ namespace hourglass_timer_v1
 
             foreach (var particle in currentParticles)
             {
+                // Apply gravity based on current orientation
                 if (deviceIsFlipped)
                 {
                     particle.VelocityY -= GravityFactor;
@@ -381,6 +385,7 @@ namespace hourglass_timer_v1
                     particle.VelocityY += GravityFactor;
                 }
 
+                // Random horizontal movement
                 if (random.NextDouble() < 0.1)
                 {
                     particle.VelocityX += (float)((random.NextDouble() - 0.5) * 0.5);
@@ -389,16 +394,10 @@ namespace hourglass_timer_v1
                 particle.X += particle.VelocityX;
                 particle.Y += particle.VelocityY;
 
-                bool reachedEndOfNeck;
-
-                if (deviceIsFlipped)
-                {
-                    reachedEndOfNeck = particle.Y < neckEndY && !particle.InBottomHalf;
-                }
-                else
-                {
-                    reachedEndOfNeck = particle.Y > neckEndY && !particle.InBottomHalf;
-                }
+                // Check if particle reached neck end
+                bool reachedEndOfNeck = deviceIsFlipped ?
+                    (particle.Y < neckEndY && !particle.InBottomHalf) :
+                    (particle.Y > neckEndY && !particle.InBottomHalf);
 
                 if (reachedEndOfNeck)
                 {
@@ -409,22 +408,12 @@ namespace hourglass_timer_v1
                     particle.VelocityX = (float)((random.NextDouble() - 0.5) * dispersionFactor);
                 }
 
-                float particleBoundary;
-                if (deviceIsFlipped)
+                // Remove particles that have fallen beyond the boundary
+                float particleBoundary = deviceIsFlipped ? neckEndY - 200 : neckEndY + 200;
+                if ((deviceIsFlipped && particle.Y < particleBoundary) ||
+                    (!deviceIsFlipped && particle.Y > particleBoundary))
                 {
-                    particleBoundary = neckEndY - 200;
-                    if (particle.Y < particleBoundary)
-                    {
-                        particlesToRemove.Add(particle);
-                    }
-                }
-                else
-                {
-                    particleBoundary = neckEndY + 200;
-                    if (particle.Y > particleBoundary)
-                    {
-                        particlesToRemove.Add(particle);
-                    }
+                    particlesToRemove.Add(particle);
                 }
             }
 
@@ -470,7 +459,6 @@ namespace hourglass_timer_v1
             else mdInt = 0;
 
             Button button = (Button)sender;
-
             button.Text = timerModifiersText[mdInt];
         }
 
@@ -478,70 +466,14 @@ namespace hourglass_timer_v1
         {
             if (time.TotalSeconds <= 0) return;
 
-            if (isTimerCompleted)
+            if (!isTimerRunning)
             {
-                if (!deviceIsFlipped)
-                {
-                    lock (sandParticleLock)
-                    {
-                        sandParticles.Clear();
-                    }
-                    elapsedPercentage = 0;
-                }
-                else
-                {
-                    time = totalTime;
-                }
-            }
-            else
-            {
-                if (!deviceIsFlipped)
-                {
-                    lock (sandParticleLock)
-                    {
-                        sandParticles.Clear();
-                    }
-                }
-                else
-                {
-                    time = TimeSpan.Zero;
-
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        TimerLabel.Text = "00:00";
-                        isTimerRunning = false;
-                        isTimerCompleted = true;
-                        startTimerButton.IsEnabled = true;
-
-                        canvasView.InvalidateSurface();
-                    });
-
-                    return;
-                }
+                totalTime = time;
             }
 
             isTimerRunning = true;
             isTimerCompleted = false;
-            totalTime = time;
-
-            mainTimer = new System.Timers.Timer();
-            mainTimer.Interval = 1000;
-            mainTimer.Enabled = true;
-            mainTimer.Elapsed += OnTimerElapsed;
-
-            isAnimating = true;
-
-            animationTimer = new System.Timers.Timer();
-            animationTimer.Interval = 16;
-            animationTimer.Enabled = true;
-            animationTimer.Elapsed += AnimationTimer_Elapsed;
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                startTimerButton.IsEnabled = false;
-                resetTimerButton.IsEnabled = true;
-            });
-
+            StartTimers();
             canvasView.InvalidateSurface();
         }
 
@@ -562,31 +494,14 @@ namespace hourglass_timer_v1
                     time -= TimeSpan.FromSeconds(1);
                     TimerLabel.Text = time.ToString(@"mm\:ss");
                     elapsedPercentage = 1 - (float)(time.TotalSeconds / totalTime.TotalSeconds);
-
                     canvasView.InvalidateSurface();
                 }
                 else
                 {
-                    if (mainTimer != null)
-                    {
-                        mainTimer.Stop();
-                        mainTimer.Dispose();
-                        mainTimer = null;
-                    }
-                    if (animationTimer != null)
-                    {
-                        animationTimer.Stop();
-                        animationTimer.Dispose();
-                        animationTimer = null;
-                    }
-
+                    StopTimers();
                     TimerLabel.Text = "00:00";
-                    isTimerRunning = false;
-                    isAnimating = false;
                     isTimerCompleted = true;
-
                     startTimerButton.IsEnabled = true;
-
                     canvasView.InvalidateSurface();
                 }
             });
@@ -610,11 +525,6 @@ namespace hourglass_timer_v1
 
             isAnimating = false;
             isTimerRunning = false;
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                startTimerButton.IsEnabled = true;
-            });
         }
 
         private void resetTimerButton_Clicked(object sender, EventArgs e)
@@ -635,39 +545,11 @@ namespace hourglass_timer_v1
         {
             base.OnDisappearing();
 
-            if (isAccelerometerActive)
+            if (Accelerometer.Default.IsSupported)
             {
                 Accelerometer.Default.Stop();
                 Accelerometer.Default.ReadingChanged -= Accelerometer_ReadingChanged;
             }
-        }
-        private void RestartTimerAfterFlip()
-        {
-            if (!isTimerCompleted) return;
-
-            time = totalTime;
-
-            mainTimer = new System.Timers.Timer();
-            mainTimer.Interval = 1000;
-            mainTimer.Enabled = true;
-            mainTimer.Elapsed += OnTimerElapsed;
-
-            isAnimating = true;
-
-            animationTimer = new System.Timers.Timer();
-            animationTimer.Interval = 16;
-            animationTimer.Enabled = true;
-            animationTimer.Elapsed += AnimationTimer_Elapsed;
-
-            isTimerCompleted = false;
-            isTimerRunning = true;
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                TimerLabel.Text = time.ToString(@"mm\:ss");
-                startTimerButton.IsEnabled = false;
-                resetTimerButton.IsEnabled = true;
-            });
         }
     }
 }
