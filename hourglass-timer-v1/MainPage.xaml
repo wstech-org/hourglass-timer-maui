@@ -4,53 +4,71 @@
              x:Class="hourglass_timer_v1.MainPage"
              xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls">
 
-    <Grid RowDefinitions="10, auto, 3*, 2*, 10" ColumnDefinitions="10, *, 10">
+    <Grid RowDefinitions="10, auto, 3*, 2*, 10" 
+          ColumnDefinitions="10, *, 10"
+          HorizontalOptions="Fill"
+          VerticalOptions="Fill">
 
         <Label x:Name="headerLabel"
-                Grid.Row="1" 
+               Grid.Row="1" 
                Grid.Column="1" 
                Text="Hourglass Timer" 
                FontSize="48"
                FontAttributes="Bold"
-               Margin="0,0,0,10"/>
+               Margin="0,0,0,10"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               HorizontalTextAlignment="Center"/>
 
         <skia:SKCanvasView x:Name="canvasView" 
-                           Grid.Column="1" 
-                           Grid.Row="2"
-                           PaintSurface="OnCanvasViewPaintSurface" />
+                          Grid.Column="1" 
+                          Grid.Row="2"
+                          PaintSurface="OnCanvasViewPaintSurface"
+                          HorizontalOptions="Fill"
+                          VerticalOptions="Fill" />
 
         <VerticalStackLayout Grid.Row="3" 
-                     Grid.Column="1"
-                     HorizontalOptions="Center"
-                     Margin="20">
-            <HorizontalStackLayout>
+                            Grid.Column="1"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center"
+                            Margin="20">
+
+            <HorizontalStackLayout HorizontalOptions="Center">
                 <Button x:Name="decreaseTimerModifierButton"
                         Text="1x"
                         FontSize="13"
                         Clicked="ModifierButton_Clicked"
                         WidthRequest="50"
                         HeightRequest="50"
-                        Margin="5"/>
+                        Margin="5"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"/>
 
                 <Button x:Name="decreaseTimerButton"
                         Text="-"
                         FontAutoScalingEnabled="True"
                         Clicked="TimerButton_Clicked"
                         WidthRequest="50"
-                        HeightRequest="50"/>
+                        HeightRequest="50"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"/>
 
-                <Label
-                     x:Name="TimerLabel"
-                     FontSize="35"
-                     HorizontalOptions="Center"
-                     Text="00:00"
-                     Margin="5"/>
+                <Label x:Name="TimerLabel"
+                       FontSize="35"
+                       Text="00:00"
+                       Margin="5"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       HorizontalTextAlignment="Center"
+                       VerticalTextAlignment="Center"/>
 
                 <Button x:Name="increaseTimerButton"
                         Text="+"
                         Clicked="TimerButton_Clicked"
                         WidthRequest="50"
-                        HeightRequest="50"/>
+                        HeightRequest="50"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"/>
 
                 <Button x:Name="increaseTimerModifierButton"
                         Text="1x"
@@ -58,20 +76,38 @@
                         Clicked="ModifierButton_Clicked"
                         WidthRequest="50"
                         HeightRequest="50"
-                        Margin="5"/>
+                        Margin="5"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"/>
             </HorizontalStackLayout>
 
-            <VerticalStackLayout>
+            <VerticalStackLayout HorizontalOptions="Center"
+                               Spacing="5">
                 <Button x:Name="startTimerButton"
                         Text="Start"
                         Margin="0,5"
-                        Clicked="startTimerButton_Clicked"/>
+                        Clicked="startTimerButton_Clicked"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        MinimumWidthRequest="200"/>
 
                 <Button x:Name="resetTimerButton"
                         Text="Reset"
                         Margin="0,5"
-                        Clicked="resetTimerButton_Clicked"/>
+                        Clicked="resetTimerButton_Clicked"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        MinimumWidthRequest="200"/>
+
+                <Button x:Name="rotateButton"
+                        Text="Rotate"
+                        Margin="0,5"
+                        Clicked="rotateButton_Clicked"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        MinimumWidthRequest="200"/>
             </VerticalStackLayout>
         </VerticalStackLayout>
     </Grid>
+
 </ContentPage>
