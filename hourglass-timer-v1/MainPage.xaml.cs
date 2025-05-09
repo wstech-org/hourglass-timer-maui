@@ -7,8 +7,8 @@ namespace hourglass_timer_v1
 {
     public partial class MainPage : ContentPage
     {
-        private System.Timers.Timer mainTimer;
-        private System.Timers.Timer animationTimer;
+        private System.Timers.Timer? mainTimer;
+        private System.Timers.Timer? animationTimer;
         const int SIZE = 20;
         TimeSpan time = new();
         TimeSpan totalTime = new();
@@ -99,12 +99,12 @@ namespace hourglass_timer_v1
             }
         }
 
-        private void Accelerometer_ReadingChanged(object sender, AccelerometerChangedEventArgs e)
+        private void Accelerometer_ReadingChanged(object? sender, AccelerometerChangedEventArgs e)
         {
             var acceleration = e.Reading.Acceleration;
             bool shouldBeFlipped = acceleration.Z < -0.7;
 
-            if (shouldBeFlipped != isHourglassRotated)
+            if (shouldBeFlipped != deviceIsFlipped && shouldBeFlipped == isHourglassRotated)
             {
                 RotateHourglass();
             }
@@ -120,36 +120,28 @@ namespace hourglass_timer_v1
             isHourglassRotated = !isHourglassRotated;
             deviceIsFlipped = !deviceIsFlipped;
 
-            // Handle timer and sand adjustment when rotating
-            if (isTimerRunning || isTimerCompleted)
+            if (isTimerRunning)
             {
-                // Calculate the new time after rotation
-                float remainingPercentage = (float)(time.TotalSeconds / totalTime.TotalSeconds);
-                float flippedPercentage = 1.0f - remainingPercentage;
-                time = TimeSpan.FromSeconds(totalTime.TotalSeconds * flippedPercentage);
+                float elapsedSeconds = (float)(totalTime.TotalSeconds - time.TotalSeconds);
+                time = TimeSpan.FromSeconds(elapsedSeconds);
 
-                // Update UI
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     TimerLabel.Text = time.ToString(@"mm\:ss");
                 });
 
-                // Clear sand particles for the flip
                 lock (sandParticleLock)
                 {
                     sandParticles.Clear();
                 }
-
-                // If timer was completed, restart it in the new orientation
-                if (isTimerCompleted)
-                {
-                    isTimerCompleted = false;
-                    isTimerRunning = true;
-                    StartTimers();
-                }
+            }
+            else if (isTimerCompleted)
+            {
+                isTimerCompleted = false;
+                isTimerRunning = true;
+                StartTimers();
             }
 
-            // Trigger redraw
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 canvasView.InvalidateSurface();
@@ -219,7 +211,6 @@ namespace hourglass_timer_v1
 
             centerX = canvasWidth / 2;
 
-            // Calculate neck positions based on rotation state
             if (deviceIsFlipped)
             {
                 neckStartY = (SIZE + (SIZE / 4)) * rectHeight / 2 + 100;
@@ -234,14 +225,8 @@ namespace hourglass_timer_v1
             neckWidth = rectWidth * 2;
             hourglassCells.Clear();
 
-            // Apply rotation transformation
             canvas.Save();
-            if (isHourglassRotated)
-            {
-                canvas.RotateRadians((float)Math.PI, canvasWidth / 2, canvasHeight / 2);
-            }
 
-            // Draw hourglass frame and sand
             for (int verticalIndex = 0; verticalIndex < 2 * SIZE - (SIZE / 4); verticalIndex++)
             {
                 var rowCells = new List<HourglassCell>();
@@ -331,7 +316,6 @@ namespace hourglass_timer_v1
                 else idx++;
             }
 
-            // Draw sand particles
             if ((isAnimating || isTimerCompleted) && sandParticles.Count > 0)
             {
                 SKPaint particlePaint = new SKPaint
@@ -363,29 +347,28 @@ namespace hourglass_timer_v1
                 currentParticles = new List<SandParticle>(sandParticles);
             }
 
-            // Only add new particles if there's time remaining
             if (currentParticles.Count < MaxParticles &&
                 random.NextDouble() < 0.3 &&
                 time.TotalSeconds > 1)
             {
                 float offsetX = (float)(random.NextDouble() * neckWidth - neckWidth / 2);
                 float size = (float)(random.NextDouble() * 2 + 2);
-                particlesToAdd.Add(new SandParticle(centerX + offsetX, neckStartY, size));
+
+                float startY = isHourglassRotated ? neckEndY : neckStartY;
+                particlesToAdd.Add(new SandParticle(centerX + offsetX, startY, size));
             }
 
             foreach (var particle in currentParticles)
             {
-                // Apply gravity based on current orientation
-                if (deviceIsFlipped)
+                if (!isHourglassRotated)
                 {
-                    particle.VelocityY -= GravityFactor;
+                    particle.VelocityY += GravityFactor;  
                 }
                 else
                 {
-                    particle.VelocityY += GravityFactor;
+                    particle.VelocityY += GravityFactor; 
                 }
 
-                // Random horizontal movement
                 if (random.NextDouble() < 0.1)
                 {
                     particle.VelocityX += (float)((random.NextDouble() - 0.5) * 0.5);
@@ -394,10 +377,8 @@ namespace hourglass_timer_v1
                 particle.X += particle.VelocityX;
                 particle.Y += particle.VelocityY;
 
-                // Check if particle reached neck end
-                bool reachedEndOfNeck = deviceIsFlipped ?
-                    (particle.Y < neckEndY && !particle.InBottomHalf) :
-                    (particle.Y > neckEndY && !particle.InBottomHalf);
+                bool reachedEndOfNeck = (!isHourglassRotated && particle.Y > neckEndY && !particle.InBottomHalf) ||
+                                       (isHourglassRotated && particle.Y > neckEndY && !particle.InBottomHalf);
 
                 if (reachedEndOfNeck)
                 {
@@ -408,10 +389,8 @@ namespace hourglass_timer_v1
                     particle.VelocityX = (float)((random.NextDouble() - 0.5) * dispersionFactor);
                 }
 
-                // Remove particles that have fallen beyond the boundary
-                float particleBoundary = deviceIsFlipped ? neckEndY - 200 : neckEndY + 200;
-                if ((deviceIsFlipped && particle.Y < particleBoundary) ||
-                    (!deviceIsFlipped && particle.Y > particleBoundary))
+                float particleBoundary = neckEndY + 200; 
+                if (particle.Y > particleBoundary)
                 {
                     particlesToRemove.Add(particle);
                 }
@@ -477,7 +456,7 @@ namespace hourglass_timer_v1
             canvasView.InvalidateSurface();
         }
 
-        private void AnimationTimer_Elapsed(object sender, ElapsedEventArgs e)
+        private void AnimationTimer_Elapsed(object? sender, ElapsedEventArgs e)
         {
             if (isAnimating)
             {
@@ -485,7 +464,7 @@ namespace hourglass_timer_v1
             }
         }
 
-        private void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -533,6 +512,10 @@ namespace hourglass_timer_v1
             time = TimeSpan.Zero;
             TimerLabel.Text = time.ToString(@"mm\:ss");
             isTimerCompleted = false;
+
+            isHourglassRotated = false;
+            deviceIsFlipped = false;
+
             lock (sandParticleLock)
             {
                 sandParticles.Clear();
